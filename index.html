@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>BOQ to Tender Generator</title>
+
+  <style>
+    body {
+      font-family: Arial;
+      background: #f5f7fa;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      text-align: center;
+      width: 350px;
+    }
+
+    h2 {
+      margin-bottom: 20px;
+    }
+
+    input[type="file"] {
+      margin: 15px 0;
+    }
+
+    button {
+      background: #4CAF50;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #45a049;
+    }
+
+    .loading {
+      margin-top: 15px;
+      display: none;
+      color: #333;
+    }
+
+    .result {
+      margin-top: 20px;
+    }
+
+    .link-btn {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 10px 15px;
+      background: #007BFF;
+      color: white;
+      text-decoration: none;
+      border-radius: 5px;
+    }
+
+    .link-btn:hover {
+      background: #0056b3;
+    }
+
+    .error {
+      color: red;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="container">
+  <h2>Upload BOQ</h2>
+
+  <input type="file" id="boqFile" accept="image/*,application/pdf" />
+
+  <br>
+
+  <button onclick="uploadFile()">Generate Tender</button>
+
+  <div class="loading" id="loading">
+    Processing... ⏳
+  </div>
+
+  <div class="result" id="result"></div>
+</div>
+
+<script>
+  const WEBHOOK_URL = "https://harshalady.app.n8n.cloud/webhook/generate-tender"; // 🔥 replace this
+
+  async function uploadFile() {
+    const fileInput = document.getElementById("boqFile");
+    const loading = document.getElementById("loading");
+    const resultDiv = document.getElementById("result");
+
+    resultDiv.innerHTML = "";
+
+    if (!fileInput.files.length) {
+      alert("Select a file first");
+      return;
+    }
+
+    const file = fileInput.files[0];
+
+    const formData = new FormData();
+    formData.append("boq", file);
+
+    loading.style.display = "block";
+
+    try {
+      const response = await fetch(WEBHOOK_URL, {
+        method: "POST",
+        body: formData
+      });
+
+      if (!response.ok) {
+        throw new Error("Server error");
+      }
+
+      const data = await response.json();
+
+      // 🔍 DEBUG (VERY IMPORTANT)
+      console.log("API RESPONSE:", data);
+
+      let link = null;
+
+      // Handle ALL possible formats
+      if (Array.isArray(data) && data[0]?.sheet_url) {
+        link = data[0].sheet_url;
+      }
+      else if (Array.isArray(data) && data[0]?.json?.sheet_url) {
+        link = data[0].json.sheet_url;
+      }
+      else if (data.sheet_url) {
+        link = data.sheet_url;
+      }
+
+      if (!link) {
+        throw new Error("sheet_url not found in response");
+      }
+
+      // Create button
+      const btn = document.createElement("a");
+      btn.href = link;
+      btn.innerText = "Open Tender Sheet";
+      btn.target = "_blank";
+      btn.className = "link-btn";
+
+      resultDiv.appendChild(btn);
+
+    } catch (error) {
+      console.error(error);
+      resultDiv.innerHTML = `<p class="error">Error: ${error.message}</p>`;
+    }
+
+    loading.style.display = "none";
+  }
+</script>
+
+</body>
+</html>
